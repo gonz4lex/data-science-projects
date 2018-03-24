@@ -1,4 +1,4 @@
-The Rejection Sampling method is usually used to simulate data from an unknown distribution. To do this 
+#The Rejection Sampling method is usually used to simulate data from an unknown distribution. To do this 
 #one samples from a distribution that covers the suport of the unknown distribution and use certain 
 #criteria for accepting/rejecting the sampled values. One way to do this is as follows (Rice, p 92).
 
