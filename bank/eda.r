@@ -16,6 +16,11 @@ bank %>%
   group_by(y) %>% 
   summarise(count = n())
 
+## function to convert to month number
+
+abb2m <- function(x) match(tolower(x), tolower(month.abb))
+bank$month <- as.factor(abb2m(bank$month))
+
 # Lines of report
 # 
 # Plot missing data
@@ -88,16 +93,22 @@ lngDataNo <-
   gather()
 
 ggplot(data = data.frame(), aes(x = value)) +
-  geom_density(data =lngDataYes, color = 'blue', show.legend = TRUE) +
-  geom_density(data = lngDataNo, color = 'red', show.legend = TRUE) +
+  geom_density(data = lngDataYes, fill = '#377EB8', color = '#377EB8', alpha = .3) +
+  geom_density(data = lngDataNo, fill = '#E41A1C', color = '#E41A1C', alpha = .3) +
   facet_wrap( ~ key, scales = 'free') +
   labs(title = "Density",
        subtitle = 'of each numeric variable') + 
   theme(plot.title = element_text(hjust = .5), 
-        axis.ticks = element_blank()) +
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '',values = c(yes = '#377EB8', no = '#E41A1C')) +
   theme_fivethirtyeight()
 
+## This variables, except day and age, have extremley longtailed distibutions
+
 ## plot non numerical variables similar to above
+
+## random test for facet grid
 
 bank %>% 
   select_if(negate(is.numeric)) %>% 
@@ -115,19 +126,88 @@ bank %>%
 
 
 # Plot scatter of explanatory variable against count of clients, color by target variable.
+
+
+
 # Plot jitter of campaign calls against duration of call, color by tv.
+
+bank %>% 
+  ggplot(aes(x = duration, y = campaign, color = y)) + 
+  geom_jitter() + 
+  labs(title = "placeholder",
+       subtitle = 'placeholder') + 
+  theme(plot.title = element_text(hjust = .5), 
+        axis.ticks = element_blank(),
+        panel.grid.minor.x= element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '', values = c(yes = 'blue', no ='red')) + 
+  theme_fivethirtyeight()
+
+bank %>% 
+  ggplot(aes(x = campaign, y = duration, color = y)) +
+  geom_jitter(stat = "identity") + 
+  labs(title = "placeholder",
+       subtitle = 'placeholder') + 
+  theme(plot.title = element_text(hjust = .5), 
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_color_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight()
+
+
 # Plot histogram of count of clients by tv distributed by number of calls, add loess.
+
+bank %>% 
+  ggplot(aes(x = campaign, fill = y)) +
+  geom_histogram(position = 'dodge') + 
+  labs(title = "placeholder",
+       subtitle = 'placeholder') + 
+  theme(plot.title = element_text(hjust = .5), 
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight() +
+  coord_cartesian(xlim = c(0, 20))
+
 # Plot density of job status by tv.
+
+
 # Plot distribution over loan status.
+
+
+
 # Age pyramid?
 
+bank %>% 
+  ggplot(aes(x = age)) +
+  geom_density(aes(x = age, fill = y), alpha = .6) +
+  labs(title = "placeholder",
+       subtitle = 'placeholder') + 
+  theme(plot.title = element_text(hjust = .5),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight()
 
+## older and younger clients tend to subscribe more often than midde aged.
+## correlated with job? 
+
+
+
+## other stuff
 
 bank %>% 
   ggplot(aes(y)) +
-  geom_bar() +
+  geom_bar(aes(fill = y)) +
   xlab("Frequency of target variable") +
   ylab("Absolute frequency") + 
+  theme_fivethirtyeight() + 
+  labs(title = "placeholder",
+       subtitle = 'placeholder') + 
+  theme(plot.title = element_text(hjust = .5), 
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
   theme_fivethirtyeight()
 
 myCorr <- function(data, mapping, method = "loess", ...){
@@ -160,32 +240,86 @@ bank %>%
 ## interesting that retired and unemployed seem to have higher percentage of suscription
 
 bank %>% 
+  group_by(y, loan) %>% 
+  summarise(count = n()) %>% 
+  arrange(count) %>%
+  ggplot() +
+  geom_bar(x = loan)
+
+bank %>% 
   ggplot(aes(x = balance)) +
-  geom_density() + 
+  geom_density(aes(fill = y)) + 
   labs(title = "Balance density",
        subtitle = 'analyzed over the full dataset') + 
   theme(plot.title = element_text(hjust = .5), 
         axis.ticks = element_blank(),
         panel.grid.minor.x = element_line(colour = "gray80")) + 
   scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
-  theme_fivethirtyeight()
+  theme_fivethirtyeight() +
+  coord_cartesian(xlim = c(0, 50000))
+
+##↑ seems that there is a higher tendency to reject a deposit when the balance is lower
 
 bank %>% 
-  select(job, balance) %>% 
-  ggplot(aes(job, balance)) + 
-  geom_boxplot() + 
+  select(month, balance, y) %>% 
+  ggplot(aes(month, balance)) + 
+  geom_boxplot(aes(fill = y)) + 
   coord_flip() +
   coord_cartesian(ylim = c(-3000, 11000)) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
-  xlab('Jobs')
+  xlab('Campaign month') +
+  labs(title = "placeholder",
+       subtitle = 'placeholder') + 
+  theme(plot.title = element_text(hjust = .5),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight()
+
+
+
+
+bank %>% 
+  group_by(month, y) %>% 
+  summarise(count = n()) %>% 
+  mutate(prop = count / sum(count)) %>% 
+  ggplot(aes(x = month, y = prop * 100)) +
+  geom_bar(aes(fill = y), stat = 'identity') +
+  # geom_density(aes(fill = y), alpha = .6) +
+  labs(title = "placeholder",
+       subtitle = 'placeholder') + 
+  theme(plot.title = element_text(hjust = .5),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight()
+
 
 ## enormous quantity of outliers
 
 correlations <- 
-  bank[which(sapply(bank, is.numeric))] %>% 
+  bank %>%
+  select_if(is.numeric) %>% 
   na.omit() %>% 
   cor()
 
 
 # correlations are very low
 corrplot(correlations, method = "square")
+
+
+bank %>% 
+  group_by(month, y) %>% 
+  summarise(count = n()) %>% 
+  ggplot() +
+  geom_point(aes(x = month, y = count, color = y)) +
+  labs(title = "placeholder",
+       subtitle = 'placeholder') + 
+  theme(plot.title = element_text(hjust = .5),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_color_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight() +
+  coord_flip()
