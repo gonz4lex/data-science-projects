@@ -1,0 +1,698 @@
+---
+title: "Statistical Learning and Decision Making II"
+subtitle: "Classification Project"
+author: "Alejandro Gonzalez"
+date: "1 April 2018"
+output: 
+  prettydoc::html_pretty:
+    theme: hpstr
+    toc: true 
+    toc_depth: 3
+    keep_md: true
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE) 
+```
+
+# 1. Introduction
+
+Consider the "*bank-full.csv*" dataset. 
+The data is related with direct marketing campaigns of a Portuguese banking institution. 
+The marketing campaigns were based on phone calls. Often, more than one contact to the same client was required, 
+in order to access if the product (bank term deposit) would be (or not) subscribed. 
+
+The dataset description can be found in the "*bank-names.txt*" file.
+
+The motivation is to solve a classification problem using SVMs and NNs by developing a study which contains the following:
+
+1. Exploratory Data Analysis and Data Visualization
+2. Correlation Matrix
+3. Train and test splitting
+4. Model adjustment and plots
+
+Please note that I will be closely following the class notes, scripts and documentation as well as functions and code snippets from the lectures.
+
+# 2. Exploratory Data Analysis and Data Visualization
+
+Let us start by loading some of the required packages. Others will be added along the way.
+
+```{r library, echo = FALSE}
+load_libraries <- c('gridExtra', 'corrplot',
+                    'GGally', 'ggplot2',
+                    'e1071', 'tidyverse',
+                    'ggthemes', 'reshape2',
+                    "caret", 'knitr')
+sapply(load_libraries, require, character = TRUE)
+```
+
+Now, we will load the bank marketing campaign data into memory to perform extensive data manipulation:
+
+```{r data}
+bank <- read.csv("./datasets/bank-full.csv",  sep = ";", na.strings = "unknown")
+```
+
+
+```{r initial}
+dim(bank)
+str(bank)
+summary(bank)
+
+bank %>% 
+  group_by(y) %>% 
+  summarise(count = n())
+```
+
+A quick glance at the summary of the data reveals that the positive class accounts for `r round((5289 / 45211) * 100, 2)`% of the dataset.
+Let us also take a look at the missing values of the data.
+
+```{r amelia, include = FALSE, echo = FALSE, warning = FALSE}
+library(Amelia)
+library(moments)
+library(rpart)
+library(ROCR)
+library(factoextra)
+library(kernlab)
+library(randomForest)
+library(nnet)
+```
+
+
+```{r missing}
+missmap(bank,
+        y.labels = NULL,
+        y.at = NULL)
+```
+
+The variable ```poutcome``` has many missing entries, while ```contact```, ```education``` and ```job``` have fewer. Only 7% of the overall data is missing.
+
+It is interesting to check for skewness of numeric variables:
+
+```{r skewness}
+
+skewedVars <- c()
+for(i in names(bank)){
+  if(is.numeric(bank[,i])){
+    skewVal <- skewness(bank[,i])
+    print(paste(i, skewVal, sep = ": "))
+    if(abs(skewVal) > 0.5){
+      skewedVars <- c(skewedVars, i)
+    }
+  }
+}
+
+skewedVars
+```
+
+The variables returned by ```skewedVars``` are mostly skewed to the left, with a long tail distribution as can be seen in the plots:
+
+```{r num_density}
+lngDataYes <- 
+  bank %>% 
+  filter(y == 'yes') %>% 
+  select_if(is.numeric) %>% 
+  gather()
+
+lngDataNo <- 
+  bank %>% 
+  filter(y == 'no') %>% 
+  select_if(is.numeric) %>% 
+  gather()
+
+ggplot(data = data.frame(), aes(x = value)) +
+  geom_density(data = lngDataYes, fill = '#377EB8', color = '#377EB8', alpha = .3) +
+  geom_density(data = lngDataNo, fill = '#E41A1C', color = '#E41A1C', alpha = .3) +
+  facet_wrap( ~ key, scales = 'free') +
+  labs(title = "Density",
+       subtitle = 'of each numeric variable') + 
+  theme(plot.title = element_text(hjust = .5), 
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '',values = c(yes = '#377EB8', no = '#E41A1C')) +
+  theme_fivethirtyeight()
+
+```
+
+
+
+
+```{r cat_density, warning = FALSE}
+lngDataYes <- 
+  bank %>% 
+  filter(y == 'yes') %>% 
+  select_if(negate(is.numeric)) %>% 
+  gather()
+
+lngDataNo <- 
+  bank %>% 
+  filter(y == 'no') %>% 
+  select_if(negate(is.numeric)) %>% 
+  gather()
+
+ggplot(data = data.frame(), aes(x = value)) +
+  geom_bar(data = lngDataYes, fill = '#377EB8', color = '#377EB8', alpha = 1) +
+  geom_bar(data = lngDataNo, fill = '#E41A1C', color = '#E41A1C', alpha = .3) +
+  facet_wrap( ~ key, scales = 'free') +
+  labs(title = "Distribution",
+       subtitle = 'of each numeric variable') + 
+  theme(plot.title = element_text(hjust = .5), 
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '',values = c(yes = '#377EB8', no = '#E41A1C')) +
+  theme_fivethirtyeight() +
+  coord_flip()
+
+```
+
+The distribution of categorical variables is also important to monitor, since they can yield an insight on strong predictors.
+
+```{r month_dist}
+bank %>% 
+  group_by(month, y) %>% 
+  summarise(count = n()) %>% 
+  mutate(prop = count / sum(count)) %>% 
+  ggplot(aes(x = month, y = prop * 100)) +
+  geom_bar(aes(fill = y), stat = 'identity', position = 'dodge', alpha = .3) +
+  labs(title = "Distribution of deposits",
+       subtitle = 'by campaing month') + 
+  theme(plot.title = element_text(hjust = .5),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight()
+
+bank %>% 
+  select(month, balance, y) %>% 
+  ggplot(aes(month, balance)) + 
+  geom_boxplot(aes(fill = y)) + 
+  coord_flip() +
+  coord_cartesian(ylim = c(-3000, 11000)) +
+  xlab('Campaign month') +
+  labs(title = "Distribution of deposits",
+       subtitle = 'by campaing month') + 
+  theme(plot.title = element_text(hjust = .5),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight()
+```
+
+For instance, it can be seen that the ```month``` variable can be useful since some months such as March have a better yield of succesful subscriptions. However, many data points are considered outliers and lie beyond the 1st and 3rd quarters of the distribution. 
+
+```{r loans}
+bank %>% 
+  select_if(negate(is.numeric)) %>% 
+  ggplot() +
+  geom_bar(aes(x = default, y = log(..count..), fill = y)) + 
+  facet_grid(housing ~ loan, scales = 'free') +
+  coord_flip() +
+  labs(title = "Proportion of accounts in default",
+       subtitle = 'housing loans vs personal loans') + 
+  theme(plot.title = element_text(hjust = .5), 
+        panel.grid.minor.x = element_line(colour = "gray80"),
+        strip.text.y = element_blank()) + 
+  scale_fill_manual(name = '',
+                    values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight()
+```
+
+The graph above, plotted on a logarithmic scale for display purposes, show the proportion of contracted deposits for different values of the variables ```housing``` (on the Y-axis) and ```loan``` (on the X-axis). Blue values represent clients in a ```default``` status.
+A hidden insight within the data reveals that, as it would be expected, people in default would not want to subscribe to additional products, especially when they have also contracted a personal or housing loan.
+
+```{r duration}
+bank %>% 
+  ggplot(aes(x = campaign, y = duration, color = y)) +
+  geom_jitter(stat = "identity") + 
+  labs(title = "Number of campaign calls and duration",
+       subtitle = "by subscription status") + 
+  theme(plot.title = element_text(hjust = .5), 
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_color_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight() +
+  geom_hline(aes(yintercept = 200), lty = 'dashed') +
+  coord_cartesian(xlim = c(0, 40))
+```
+
+It is also very interesting that very few values in the scatter plot above lie below the 200 seconds value on the ```duration``` variable, as denoted by the dashed line. Therefore it appears that fewer and longer calls are more effective at getting clients to subscribe a deposit. 
+
+Let us confirm this assertion by plotting subscription rates along the number of calls made to the same client:
+
+```{r num_calls}
+bank %>% 
+  ggplot(aes(x = campaign, fill = y)) +
+  geom_histogram(position = 'dodge') + 
+  labs(title = "Number of subscriptions",
+       subtitle = "by number of calls") + 
+  theme(plot.title = element_text(hjust = .5), 
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight() +
+  coord_cartesian(xlim = c(0, 20))
+```
+
+As expected, the fewer calls performed on the same client, the higher the probability to subscribe.
+
+```{r age}
+bank %>% 
+  ggplot(aes(x = age)) +
+  geom_density(aes(x = age, fill = y), alpha = .6) +
+  labs(title = "Distribution of deposits",
+       subtitle = 'by age of client') + 
+  theme(plot.title = element_text(hjust = .5),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight()
+```
+
+The ```age``` density plot reveals that better adoption rates are found within the extreme groups of the population. That is, the young and especially the elderly. This may also be correlated with the job category of a client, which can be easily checked:
+
+```{r jobs}
+bank %>% 
+  group_by(y, job) %>% 
+  summarise(count = n()) %>% 
+  arrange(count) %>% 
+  mutate(freq = count / sum(count)) %>%
+  ggplot(aes(x = reorder(job, -freq), y = freq, fill = y)) +
+  geom_bar(stat = "identity", width = .5) + coord_flip() + 
+  labs(title = "Distribution of deposits",
+       subtitle = 'individual proportion over jobs') + 
+  theme(plot.title = element_text(hjust = .5), 
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight()
+```
+
+It can be seen that students and retired clients are more likely to purchase a subscription, which correlates nicely with our previous hypothesis.
+
+```{r balance}
+bank %>% 
+  ggplot(aes(x = balance)) +
+  geom_density(aes(fill = y), alpha = 0.6) + 
+  labs(title = "Balance density",
+       subtitle = 'analyzed over the full dataset') + 
+  theme(plot.title = element_text(hjust = .5), 
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight() +
+  coord_cartesian(xlim = c(0, 15000))
+```
+
+# 3. Correlation matrix
+
+
+```{r corr}
+correlations <- bank %>%
+                select_if(is.numeric) %>% 
+                na.omit() %>% 
+                cor()
+
+as.data.frame(correlations) %>% round(4) %>% knitr::kable()
+
+corrplot(correlations, method = "square")
+```
+
+The numerical variables have low correlation values between one another. No further steps are needed to remove any highly correlated features.
+
+# 4. Train & test splitting
+
+Instead of using the ```caret``` package, the code snippet below quickly splits the data in equally proportioned sets:
+
+```{r split}
+bank <- na.omit(bank)
+index <- 1:nrow(bank)
+test_idx <- sample(index, trunc(length(index) * 30 / 100))
+test_set <- bank[test_idx,]
+train_set <- bank[-test_idx,]
+
+table(train_set$y) / length(train_set$y)
+table(test_set$y) / length(test_set$y)
+```
+
+
+# 5. Model adjustments and plots
+
+Fitting several different models will allow us to carefully compare their performances and accuracy:
+
+## 5.1. Logistic regression
+
+```{r logit}
+log_mdl <- glm(y ~ .,
+               data = train_set,
+               family = binomial('logit'))
+summary(log_mdl)
+
+prob <- predict(log_mdl,
+                test_set,
+                type = 'response')
+pred <- rep('no', length(prob))
+pred[prob >= .5] <- 'yes'
+ 
+confusionMatrix(pred, test_set$y)
+```
+
+
+## 5.2. Neural Network
+
+Let us fit a neural network with random structure and see the general performance of the technique. Afterwards, we can try to tune it further.
+
+```{r neuralnet, include = FALSE}
+
+nn_mdl <- nnet(y ~ .,
+           data = train_set,
+           size = 5,
+           maxit = 2000)
+```
+
+```{r neuralnet2, include = FALSE}
+nn_mdl2 <- nnet(y ~ .,
+           data = train_set,
+           size = 24,
+           maxit = 2000)
+```
+
+```{r nn_pred}
+nn_pred <- predict(nn_mdl2,
+                   newdata = test_set,
+                   type = 'raw')
+
+nn_pred_prob <- rep('no', length(nn_pred))
+nn_pred_prob[nn_pred >= 0.5] <- 'yes'
+
+confusionMatrix(nn_pred_prob, test_set$y)
+
+nn_pred <- predict(nn_mdl,
+                   newdata = test_set,
+                   type = 'raw') %>% 
+  round()
+
+confusionMatrix(nn_pred, as.numeric(test_set$y) - 1)
+```
+
+There is a small improvement in the accuracy of the model, from 82% to 83%, derived from the increase in neurons. We will keep the better model for future comparison.
+
+## 5.3. Decision Tree
+
+A classification tree can also help predict variable classes:
+
+```{r tree}
+
+
+tree_model <- rpart(y ~ .,
+                    data = train_set,
+                    method = "class",
+                    minbucket = 20)
+
+tree_predict <- predict(tree_model,
+                        test_set,
+                        type = "class")
+
+tree_pred_prob <- predict(tree_model,
+                        test_set,
+                        type = "prob")
+
+confusionMatrix(test_set$y, tree_predict)
+```
+
+## 5.4. Random Forest
+
+Also, we can use an ensemble model of decision trees to create a random forest: 
+
+```{r random_forest}
+
+rf <- randomForest(y ~ .,
+                   data = train_set,
+                   ntree = 1000)
+rf_pred_prob <- predict(rf,
+                        newdata = test_set,
+                        type = 'prob')
+rf_pred <- predict(rf,
+                   newdata = test_set,
+                   type = 'class')
+
+confusionMatrix(test_set$y, rf_pred)
+```
+
+## 5.5. Support Vector Machine
+
+An SVM model can greatly outperform all others. Let us see how it can perform:
+
+```{r svm}
+svm_model <- svm(y ~ ., data = train_set, kernel = "radial")
+
+summary(svm_model)
+
+prediction <- predict(svm_model, test_set[,-17])
+
+```
+
+```{r svm_rs}
+table(pred = prediction,
+      y = test_set$y) / length(prediction)
+
+table(pred = prediction,
+      y = test_set[,17])
+
+cm_svm <- confusionMatrix(prediction, test_set$y)
+```
+
+An accuracy of `r round(cm_svm$overall[1] * 100, 2)`% is acceptable, but previous models already outperform this one.
+Notice that the overall accuracy might not be the best metric to analyze this models' performances. However, this will be addressed later on.
+We can use  cross validation techniques or fine-tune the model's parameters to obtain better results:
+
+```{r cv_svm}
+set.seed(6)
+
+control <- trainControl(method = "cv", number = 10)
+
+cv_svm <- train(y ~ .,
+                data = train_set,
+                method = "svmLinear",
+                metric = "Accuracy",
+                trControl = control)
+
+cv_pred_prob <- predict(cv_svm,
+                        newdata = test_set,
+                        type = 'raw')
+
+(cm_cv_svm <- confusionMatrix(cv_pred_prob, test_set$y))
+```
+
+`r round(cm_cv_svm$overall[1] * 100, 2)`% accuracy is also good, but still not optimal. The cross validated SVM can still be improved upon.
+
+Using the ```total_accuracy_svm``` function from the lectures, we can try to find the best values for the C and Gamma parameters:
+
+```{r tune}
+
+gamma <- c(10 ^ seq(-5, -1,
+                    by = 1))
+
+cost <- c(10 ^ seq(-2, 1,
+                   by = 1))
+
+params <- expand.grid(cost = cost,
+                      gamma = gamma)
+
+total_accuracy_svm <- function(train_set, test_set) {
+  accuracy1 <- NULL
+  accuracy2 <- NULL
+  for (i in 1:nrow(params)) {
+    learn_svm <-
+      svm(
+        y ~ .,
+        data = train_set,
+        gamma = params$gamma[i],
+        cost = params$cost[i],
+        kernel = 'radial'
+      )
+    pred_svm <- predict(learn_svm, test_set[, -17])
+    accuracy1 <- confusionMatrix(pred_svm, test_set$y)
+    accuracy2[i] <- accuracy1$overall[1]
+  }
+  accuracy2
+}
+
+c <- total_accuracy_svm(train_set, test_set)
+opt_params <- which(c == max(c))[1]
+
+opt_cost = params$cost[opt_params]
+opt_gamma = params$gamma[opt_params]
+```
+
+The optimal values obtained are ```cost``` = `r opt_cost` and ```gamma``` = `r opt_gamma`, which can be used to train the final SVM:
+
+```{r tune_svm}
+imp_svm <-
+  svm(y ~ .,
+      data = train_set,
+      cost = opt_cost,
+      gamma = opt_gamma)
+
+pred_imp_svm <- predict(imp_svm, test_set[, -17])
+(cm_imp_svm <- confusionMatrix(pred_imp_svm, test_set$y))
+
+```
+
+With `r round(cm_imp_svm$overall[1] * 100, 2)`% accuracy, this is the best model obtained so far. Let us get the SVM and prediction objects ready for posterior manipulation:
+
+```{r tune_svm_pred}
+
+mdl_svm <- 
+  ksvm(y ~ .,
+       data = train_set,
+       kernel = "rbfdot")
+
+imp_svm <-
+  ksvm(y ~ .,
+       data = train_set,
+       cost = opt_cost,
+       gamma = opt_gamma,
+       kernel = "rbfdot")
+
+svm_pred_prob <- predict(mdl_svm,
+                         newdata = test_set,
+                         type = 'decision')
+imp_pred_prob <- predict(imp_svm,
+                         newdata = test_set,
+                         type = 'decision')
+
+```
+
+## 5.6. Adjustment and plots
+
+We can plot the prediction values of the SVM models as seen in the lectures:
+
+```{r graph_svm}
+colr <- c("#ed3b3b", "#0099ff")
+par(mfrow = c(1, 2))
+
+fourfoldplot(cm_cv_svm$table,
+             color = colr,
+             conf.level = 0, 
+             margin = 1,
+             main = paste("CV SVM (", round(cm_cv_svm$overall[1] * 100), "%)",sep = ""))
+
+fourfoldplot(cm_imp_svm$table, 
+             color = colr,
+             conf.level = 0, 
+             margin = 1,
+             main = paste("Tuned SVM (", round(cm_imp_svm$overall[1] * 100), "%)",sep = ""))
+```
+
+As well as the Principal Component projections that allow us to view the decision boundary:
+
+```{r pca_svm}
+
+my_data <- select_if(bank, is.numeric)
+res.pca <- prcomp(my_data, scale = TRUE)
+
+fviz_pca_biplot(res.pca,
+  col.ind = bank$y,
+  col = "black",
+  palette = "jco",
+  geom = "point",
+  repel = TRUE,
+  legend.title = "Charges",
+  addEllipses = TRUE,
+  ylim = c(5, -15)
+)
+```
+
+In order to deal with the unreliability of the overall accuracy metric, we will follow the class notes to display Receiver Operating Characteristic curves of the models, as well as the Area Under the Curve.
+
+For that, we create ```prediction``` objects and store True and False positives in a data frame:
+
+
+```{r roc_data}
+
+pr <- ROCR::prediction(prob, test_set$y)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+dd <- data.frame(FP = prf@x.values[[1]], TP = prf@y.values[[1]])
+
+pr1 <- ROCR::prediction(nn_pred, test_set$y)
+prf1 <- performance(pr1, measure = "tpr", x.measure = "fpr")
+dd1 <- data.frame(FP = prf1@x.values[[1]], TP = prf1@y.values[[1]])
+
+pr2 <- ROCR::prediction(tree_pred_prob[,2], test_set$y)
+prf2 <- performance(pr2, measure = "tpr", x.measure = "fpr")
+dd2 <- data.frame(FP = prf2@x.values[[1]], TP = prf2@y.values[[1]])
+
+pr3 <- ROCR::prediction(rf_pred_prob[,2], test_set$y)
+prf3 <- performance(pr3, measure = "tpr", x.measure = "fpr")
+dd3 <- data.frame(FP = prf3@x.values[[1]], TP = prf3@y.values[[1]])
+
+pr4 <- ROCR::prediction(svm_pred_prob, test_set$y)
+prf4 <- performance(pr4, measure = "tpr", x.measure = "fpr")
+dd4 <- data.frame(FP = prf4@x.values[[1]], TP = prf4@y.values[[1]])
+
+pr5 <- ROCR::prediction(imp_pred_prob, test_set$y)
+prf5 <- performance(pr5, measure = "tpr", x.measure = "fpr")
+dd5 <- data.frame(FP = prf5@x.values[[1]], TP = prf5@y.values[[1]])
+```
+
+
+Next, we can plot the curves using this dataframe:
+
+```{r roc_plot}
+g <- ggplot() + 
+  geom_line(data = dd, aes(x = FP, y = TP, color = 'Logistic Regression'), size = 1.25) + 
+  geom_line(data = dd1, aes(x = FP, y = TP, color = 'Neural Network'), size = 1.25) + 
+  geom_line(data = dd2, aes(x = FP, y = TP, color = 'Decision Tree'), size = 1.25) + 
+  geom_line(data = dd3, aes(x = FP, y = TP, color = 'Random Forest'), size = 1.25) +
+  geom_line(data = dd4, aes(x = FP, y = TP, color = 'CV Support Vector Machine'), size = 1.25) +
+  geom_line(data = dd5, aes(x = FP, y = TP, color = 'Tuned Support Vector Machine'), size = 1.25) +
+  geom_segment(aes(x = 0, xend = 1, y = 0, yend = 1)) +
+  ggtitle('ROC Curve') + 
+  labs(x = 'False Positive Rate', y = 'True Positive Rate') +  theme(legend.position = "bottom") + 
+  theme(plot.title = element_text(hjust = .5), 
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) + 
+  scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
+  theme_fivethirtyeight()
+
+
+g +  scale_colour_manual(name = 'Classifier', values = c('Logistic Regression'='#E69F00',
+                                                         'Neural Network'='#56B4E9', 'Decision Tree'='#009E73',
+                                                         'Random Forest'='#D55E00', 'CV Support Vector Machine'='#0072B2', 'Tuned Support Vector Machine'='#0352B1'))
+```
+
+And compute the AUC metric:
+
+```{r auc}
+auc <- rbind(performance(pr, measure = 'auc')@y.values[[1]],
+             performance(pr1, measure = 'auc')@y.values[[1]],
+             performance(pr2, measure = 'auc')@y.values[[1]],
+             performance(pr3, measure = 'auc')@y.values[[1]],
+             performance(pr4, measure = 'auc')@y.values[[1]],
+             performance(pr5, measure = 'auc')@y.values[[1]])
+
+colnames(auc) <- 'AUC'
+
+auc <- auc %>%
+  as.data.frame() %>%
+  arrange(AUC) %>%
+  round(4)
+
+rownames(auc) <- (c('Logistic Regression', 'Neural Network', 'Decision Tree',
+                    'Random Forest', 'CV Support Vector Machine',
+                    'Tuned Support Vector Machine'))
+auc
+
+```
+
+As expected, the Tuned SVM yields the best possible results from within all the applied models, with the highest Area Under the Curve.
+Nonetheless, it takes considerably longer to train than other models. This is due to the fact that there are actually several models trained, one for every combination of ```cost``` and ```gamma``` defined.
+Then, we find the one with higher accuracy and train the final model with the optimal parameters found in the step above.
+
+# Reference
+
+S. Moro, R. Laureano and P. Cortez. *Using Data Mining for Bank Direct Marketing: An Application of the CRISP-DM Methodology.* 2011
+González-Hidalgo, M., Miró-Julià, M. *Class notes, Statistical Learning and Decision Making II.* 2018.
+
