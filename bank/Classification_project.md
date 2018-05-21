@@ -129,7 +129,7 @@ missing values of the data.
             y.labels = NULL,
             y.at = NULL)
 
-![](Classification_project_files/figure-markdown_strict/missing-1.png)
+![](figures/missing-1.png)
 
 The variable `poutcome` has many missing entries, while `contact`,
 `education` and `job` have fewer. Only 7% of the overall data is
@@ -187,7 +187,7 @@ with a long tail distribution as can be seen in the plots:
       scale_fill_manual(name = '',values = c(yes = '#377EB8', no = '#E41A1C')) +
       theme_fivethirtyeight()
 
-![](Classification_project_files/figure-markdown_strict/num_density-1.png)
+![](figures/num_density-1.png)
 
     lngDataYes <- 
       bank %>% 
@@ -214,7 +214,7 @@ with a long tail distribution as can be seen in the plots:
       theme_fivethirtyeight() +
       coord_flip()
 
-![](Classification_project_files/figure-markdown_strict/cat_density-1.png)
+![](figures/cat_density-1.png)
 
 The distribution of categorical variables is also important to monitor,
 since they can yield an insight on strong predictors.
@@ -234,7 +234,7 @@ since they can yield an insight on strong predictors.
       scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
       theme_fivethirtyeight()
 
-![](Classification_project_files/figure-markdown_strict/month_dist-1.png)
+![](figures/month_dist-1.png)
 
     bank %>% 
       select(month, balance, y) %>% 
@@ -252,7 +252,7 @@ since they can yield an insight on strong predictors.
       scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
       theme_fivethirtyeight()
 
-![](Classification_project_files/figure-markdown_strict/month_dist-2.png)
+![](figures/month_dist-2.png)
 
 For instance, it can be seen that the `month` variable can be useful
 since some months such as March have a better yield of succesful
@@ -274,7 +274,7 @@ beyond the 1st and 3rd quarters of the distribution.
                         values = c(yes = '#377EB8', no ='#E41A1C')) + 
       theme_fivethirtyeight()
 
-![](Classification_project_files/figure-markdown_strict/loans-1.png)
+![](figures/loans-1.png)
 
 The graph above, plotted on a logarithmic scale for display purposes,
 show the proportion of contracted deposits for different values of the
@@ -297,7 +297,7 @@ also contracted a personal or housing loan.
       geom_hline(aes(yintercept = 200), lty = 'dashed') +
       coord_cartesian(xlim = c(0, 40))
 
-![](Classification_project_files/figure-markdown_strict/duration-1.png)
+![](figures/duration-1.png)
 
 It is also very interesting that very few values in the scatter plot
 above lie below the 200 seconds value on the `duration` variable, as
@@ -319,7 +319,7 @@ number of calls made to the same client:
       theme_fivethirtyeight() +
       coord_cartesian(xlim = c(0, 20))
 
-![](Classification_project_files/figure-markdown_strict/num_calls-1.png)
+![](figures/num_calls-1.png)
 
 As expected, the fewer calls performed on the same client, the higher
 the probability to subscribe.
@@ -336,7 +336,7 @@ the probability to subscribe.
       scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
       theme_fivethirtyeight()
 
-![](Classification_project_files/figure-markdown_strict/age-1.png)
+![](figures/age-1.png)
 
 The `age` density plot reveals that better adoption rates are found
 within the extreme groups of the population. That is, the young and
@@ -358,7 +358,7 @@ category of a client, which can be easily checked:
       scale_fill_manual(name = '', values = c(yes = '#377EB8', no ='#E41A1C')) + 
       theme_fivethirtyeight()
 
-![](Classification_project_files/figure-markdown_strict/jobs-1.png)
+![](figures/jobs-1.png)
 
 It can be seen that students and retired clients are more likely to
 purchase a subscription, which correlates nicely with our previous
@@ -376,7 +376,7 @@ hypothesis.
       theme_fivethirtyeight() +
       coord_cartesian(xlim = c(0, 15000))
 
-![](Classification_project_files/figure-markdown_strict/balance-1.png)
+![](figures/balance-1.png)
 
 3. Correlation matrix
 =====================
@@ -477,7 +477,7 @@ hypothesis.
 
     corrplot(correlations, method = "square")
 
-![](Classification_project_files/figure-markdown_strict/corr-1.png)
+![](figures/corr-1.png)
 
 The numerical variables have low correlation values between one another.
 No further steps are needed to remove any highly correlated features.
@@ -498,13 +498,13 @@ splits the data in equally proportioned sets:
 
     ## 
     ##       no      yes 
-    ## 0.770674 0.229326
+    ## 0.771949 0.228051
 
     table(test_set$y) / length(test_set$y)
 
     ## 
     ##        no       yes 
-    ## 0.7759354 0.2240646
+    ## 0.7729592 0.2270408
 
 5. Model adjustments and plots
 ==============================
@@ -526,59 +526,59 @@ their performances and accuracy:
     ## 
     ## Deviance Residuals: 
     ##     Min       1Q   Median       3Q      Max  
-    ## -3.5022  -0.4736  -0.2966  -0.1645   2.7141  
+    ## -3.5301  -0.4673  -0.2921  -0.1654   2.8845  
     ## 
     ## Coefficients:
     ##                      Estimate Std. Error z value Pr(>|z|)    
-    ## (Intercept)        -3.594e+00  3.989e-01  -9.010  < 2e-16 ***
-    ## age                 1.459e-03  5.218e-03   0.280 0.779726    
-    ## jobblue-collar     -3.256e-01  1.702e-01  -1.913 0.055704 .  
-    ## jobentrepreneur    -8.769e-01  3.298e-01  -2.659 0.007831 ** 
-    ## jobhousemaid       -3.851e-01  3.195e-01  -1.205 0.228063    
-    ## jobmanagement       1.966e-02  1.615e-01   0.122 0.903144    
-    ## jobretired         -4.977e-02  2.295e-01  -0.217 0.828316    
-    ## jobself-employed   -3.130e-02  2.516e-01  -0.124 0.901004    
-    ## jobservices        -4.437e-02  1.921e-01  -0.231 0.817392    
-    ## jobstudent          3.008e-01  2.359e-01   1.275 0.202133    
-    ## jobtechnician      -1.188e-01  1.538e-01  -0.773 0.439564    
-    ## jobunemployed       1.782e-01  2.596e-01   0.686 0.492483    
-    ## maritalmarried      1.790e-01  1.435e-01   1.247 0.212416    
-    ## maritalsingle       1.358e-01  1.639e-01   0.829 0.407248    
-    ## educationsecondary  1.376e-01  1.540e-01   0.894 0.371568    
-    ## educationtertiary   3.320e-01  1.777e-01   1.869 0.061688 .  
-    ## defaultyes         -6.949e-01  6.914e-01  -1.005 0.314873    
-    ## balance             1.243e-05  1.227e-05   1.013 0.310918    
-    ## housingyes         -7.742e-01  9.912e-02  -7.811 5.67e-15 ***
-    ## loanyes            -5.543e-01  1.551e-01  -3.575 0.000351 ***
-    ## contacttelephone   -1.638e-01  1.648e-01  -0.994 0.320234    
-    ## day                 2.237e-02  5.767e-03   3.878 0.000105 ***
-    ## monthaug            1.146e+00  1.876e-01   6.109 1.00e-09 ***
-    ## monthdec            1.064e+00  3.151e-01   3.377 0.000733 ***
-    ## monthfeb            5.234e-01  1.894e-01   2.763 0.005731 ** 
-    ## monthjan           -7.547e-01  2.516e-01  -2.999 0.002707 ** 
-    ## monthjul            1.384e+00  2.384e-01   5.806 6.38e-09 ***
-    ## monthjun            1.237e+00  2.139e-01   5.781 7.42e-09 ***
-    ## monthmar            1.692e+00  2.604e-01   6.496 8.27e-11 ***
-    ## monthmay           -5.637e-02  1.538e-01  -0.367 0.713915    
-    ## monthnov            8.083e-03  1.740e-01   0.046 0.962949    
-    ## monthoct            9.743e-01  2.129e-01   4.577 4.72e-06 ***
-    ## monthsep            1.372e+00  2.193e-01   6.256 3.95e-10 ***
-    ## duration            3.945e-03  1.889e-04  20.884  < 2e-16 ***
-    ## campaign           -1.320e-01  3.247e-02  -4.065 4.81e-05 ***
-    ## pdays               9.179e-04  4.013e-04   2.287 0.022183 *  
-    ## previous            2.979e-02  1.230e-02   2.422 0.015420 *  
-    ## poutcomeother       2.130e-01  1.098e-01   1.940 0.052399 .  
-    ## poutcomesuccess     2.087e+00  1.017e-01  20.528  < 2e-16 ***
+    ## (Intercept)        -3.688e+00  4.061e-01  -9.082  < 2e-16 ***
+    ## age                 5.997e-04  5.239e-03   0.114 0.908864    
+    ## jobblue-collar     -3.493e-01  1.701e-01  -2.053 0.040056 *  
+    ## jobentrepreneur    -7.980e-01  3.467e-01  -2.302 0.021360 *  
+    ## jobhousemaid       -1.960e-01  3.171e-01  -0.618 0.536454    
+    ## jobmanagement      -1.348e-01  1.614e-01  -0.835 0.403699    
+    ## jobretired         -2.913e-03  2.285e-01  -0.013 0.989827    
+    ## jobself-employed   -2.963e-01  2.579e-01  -1.149 0.250465    
+    ## jobservices        -8.501e-02  1.914e-01  -0.444 0.656930    
+    ## jobstudent          3.491e-01  2.320e-01   1.505 0.132327    
+    ## jobtechnician      -1.314e-01  1.519e-01  -0.865 0.387000    
+    ## jobunemployed       3.354e-02  2.643e-01   0.127 0.899017    
+    ## maritalmarried      1.157e-01  1.422e-01   0.814 0.415761    
+    ## maritalsingle       7.320e-02  1.635e-01   0.448 0.654310    
+    ## educationsecondary  2.614e-01  1.579e-01   1.656 0.097734 .  
+    ## educationtertiary   5.069e-01  1.822e-01   2.782 0.005400 ** 
+    ## defaultyes         -2.091e+00  1.105e+00  -1.892 0.058537 .  
+    ## balance             1.744e-05  1.199e-05   1.455 0.145698    
+    ## housingyes         -7.998e-01  9.910e-02  -8.071 6.97e-16 ***
+    ## loanyes            -4.181e-01  1.474e-01  -2.836 0.004567 ** 
+    ## contacttelephone   -3.036e-01  1.733e-01  -1.752 0.079774 .  
+    ## day                 2.498e-02  5.848e-03   4.271 1.94e-05 ***
+    ## monthaug            1.068e+00  1.838e-01   5.812 6.17e-09 ***
+    ## monthdec            8.405e-01  2.989e-01   2.813 0.004916 ** 
+    ## monthfeb            5.393e-01  1.891e-01   2.851 0.004357 ** 
+    ## monthjan           -7.883e-01  2.531e-01  -3.114 0.001846 ** 
+    ## monthjul            1.171e+00  2.345e-01   4.994 5.92e-07 ***
+    ## monthjun            1.326e+00  2.136e-01   6.208 5.36e-10 ***
+    ## monthmar            1.421e+00  2.685e-01   5.295 1.19e-07 ***
+    ## monthmay            1.278e-02  1.519e-01   0.084 0.932955    
+    ## monthnov           -3.550e-02  1.773e-01  -0.200 0.841299    
+    ## monthoct            1.084e+00  2.046e-01   5.301 1.15e-07 ***
+    ## monthsep            1.351e+00  2.206e-01   6.124 9.13e-10 ***
+    ## duration            3.960e-03  1.874e-04  21.131  < 2e-16 ***
+    ## campaign           -1.099e-01  3.295e-02  -3.336 0.000849 ***
+    ## pdays               7.343e-04  3.974e-04   1.848 0.064629 .  
+    ## previous            4.024e-02  1.198e-02   3.359 0.000783 ***
+    ## poutcomeother       1.508e-01  1.121e-01   1.346 0.178404    
+    ## poutcomesuccess     2.134e+00  1.011e-01  21.107  < 2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
     ## (Dispersion parameter for binomial family taken to be 1)
     ## 
-    ##     Null deviance: 5912.3  on 5489  degrees of freedom
-    ## Residual deviance: 3769.8  on 5451  degrees of freedom
-    ## AIC: 3847.8
+    ##     Null deviance: 5895.3  on 5489  degrees of freedom
+    ## Residual deviance: 3747.7  on 5451  degrees of freedom
+    ## AIC: 3825.7
     ## 
-    ## Number of Fisher Scoring iterations: 5
+    ## Number of Fisher Scoring iterations: 6
 
     prob <- predict(log_mdl,
                     test_set,
@@ -592,25 +592,25 @@ their performances and accuracy:
     ## 
     ##           Reference
     ## Prediction   no  yes
-    ##        no  1674  229
-    ##        yes  151  298
+    ##        no  1688  254
+    ##        yes  130  280
     ##                                           
-    ##                Accuracy : 0.8384          
-    ##                  95% CI : (0.8229, 0.8531)
-    ##     No Information Rate : 0.7759          
-    ##     P-Value [Acc > NIR] : 2.791e-14       
+    ##                Accuracy : 0.8367          
+    ##                  95% CI : (0.8212, 0.8515)
+    ##     No Information Rate : 0.773           
+    ##     P-Value [Acc > NIR] : 1.117e-14       
     ##                                           
-    ##                   Kappa : 0.5095          
-    ##  Mcnemar's Test P-Value : 7.815e-05       
+    ##                   Kappa : 0.4933          
+    ##  Mcnemar's Test P-Value : 3.456e-10       
     ##                                           
-    ##             Sensitivity : 0.9173          
-    ##             Specificity : 0.5655          
-    ##          Pos Pred Value : 0.8797          
-    ##          Neg Pred Value : 0.6637          
-    ##              Prevalence : 0.7759          
-    ##          Detection Rate : 0.7117          
-    ##    Detection Prevalence : 0.8091          
-    ##       Balanced Accuracy : 0.7414          
+    ##             Sensitivity : 0.9285          
+    ##             Specificity : 0.5243          
+    ##          Pos Pred Value : 0.8692          
+    ##          Neg Pred Value : 0.6829          
+    ##              Prevalence : 0.7730          
+    ##          Detection Rate : 0.7177          
+    ##    Detection Prevalence : 0.8257          
+    ##       Balanced Accuracy : 0.7264          
     ##                                           
     ##        'Positive' Class : no              
     ## 
@@ -634,25 +634,25 @@ performance of the technique. Afterwards, we can try to tune it further.
     ## 
     ##           Reference
     ## Prediction   no  yes
-    ##        no  1634  184
-    ##        yes  191  343
+    ##        no  1643  225
+    ##        yes  175  309
     ##                                           
-    ##                Accuracy : 0.8406          
-    ##                  95% CI : (0.8251, 0.8551)
-    ##     No Information Rate : 0.7759          
-    ##     P-Value [Acc > NIR] : 3.464e-15       
+    ##                Accuracy : 0.8299          
+    ##                  95% CI : (0.8141, 0.8449)
+    ##     No Information Rate : 0.773           
+    ##     P-Value [Acc > NIR] : 5.699e-12       
     ##                                           
-    ##                   Kappa : 0.5436          
-    ##  Mcnemar's Test P-Value : 0.7567          
+    ##                   Kappa : 0.4989          
+    ##  Mcnemar's Test P-Value : 0.01429         
     ##                                           
-    ##             Sensitivity : 0.8953          
-    ##             Specificity : 0.6509          
-    ##          Pos Pred Value : 0.8988          
-    ##          Neg Pred Value : 0.6423          
-    ##              Prevalence : 0.7759          
-    ##          Detection Rate : 0.6947          
-    ##    Detection Prevalence : 0.7730          
-    ##       Balanced Accuracy : 0.7731          
+    ##             Sensitivity : 0.9037          
+    ##             Specificity : 0.5787          
+    ##          Pos Pred Value : 0.8796          
+    ##          Neg Pred Value : 0.6384          
+    ##              Prevalence : 0.7730          
+    ##          Detection Rate : 0.6986          
+    ##    Detection Prevalence : 0.7942          
+    ##       Balanced Accuracy : 0.7412          
     ##                                           
     ##        'Positive' Class : no              
     ## 
@@ -668,27 +668,27 @@ performance of the technique. Afterwards, we can try to tune it further.
     ## 
     ##           Reference
     ## Prediction    0    1
-    ##          0 1510  122
-    ##          1  315  405
-    ##                                           
-    ##                Accuracy : 0.8142          
-    ##                  95% CI : (0.7979, 0.8297)
-    ##     No Information Rate : 0.7759          
-    ##     P-Value [Acc > NIR] : 3.113e-06       
-    ##                                           
-    ##                   Kappa : 0.5272          
-    ##  Mcnemar's Test P-Value : < 2.2e-16       
-    ##                                           
-    ##             Sensitivity : 0.8274          
-    ##             Specificity : 0.7685          
-    ##          Pos Pred Value : 0.9252          
-    ##          Neg Pred Value : 0.5625          
-    ##              Prevalence : 0.7759          
-    ##          Detection Rate : 0.6420          
-    ##    Detection Prevalence : 0.6939          
-    ##       Balanced Accuracy : 0.7979          
-    ##                                           
-    ##        'Positive' Class : 0               
+    ##          0 1636  191
+    ##          1  182  343
+    ##                                         
+    ##                Accuracy : 0.8414        
+    ##                  95% CI : (0.826, 0.856)
+    ##     No Information Rate : 0.773         
+    ##     P-Value [Acc > NIR] : <2e-16        
+    ##                                         
+    ##                   Kappa : 0.5455        
+    ##  Mcnemar's Test P-Value : 0.6787        
+    ##                                         
+    ##             Sensitivity : 0.8999        
+    ##             Specificity : 0.6423        
+    ##          Pos Pred Value : 0.8955        
+    ##          Neg Pred Value : 0.6533        
+    ##              Prevalence : 0.7730        
+    ##          Detection Rate : 0.6956        
+    ##    Detection Prevalence : 0.7768        
+    ##       Balanced Accuracy : 0.7711        
+    ##                                         
+    ##        'Positive' Class : 0             
     ## 
 
 There is a small improvement in the accuracy of the model, from 82% to
@@ -719,25 +719,25 @@ A classification tree can also help predict variable classes:
     ## 
     ##           Reference
     ## Prediction   no  yes
-    ##        no  1693  132
-    ##        yes  227  300
+    ##        no  1696  122
+    ##        yes  253  281
     ##                                           
-    ##                Accuracy : 0.8474          
-    ##                  95% CI : (0.8322, 0.8617)
-    ##     No Information Rate : 0.8163          
-    ##     P-Value [Acc > NIR] : 3.978e-05       
+    ##                Accuracy : 0.8406          
+    ##                  95% CI : (0.8251, 0.8551)
+    ##     No Information Rate : 0.8287          
+    ##     P-Value [Acc > NIR] : 0.06517         
     ##                                           
-    ##                   Kappa : 0.531           
-    ##  Mcnemar's Test P-Value : 7.008e-07       
+    ##                   Kappa : 0.5027          
+    ##  Mcnemar's Test P-Value : 1.904e-11       
     ##                                           
-    ##             Sensitivity : 0.8818          
-    ##             Specificity : 0.6944          
-    ##          Pos Pred Value : 0.9277          
-    ##          Neg Pred Value : 0.5693          
-    ##              Prevalence : 0.8163          
-    ##          Detection Rate : 0.7198          
-    ##    Detection Prevalence : 0.7759          
-    ##       Balanced Accuracy : 0.7881          
+    ##             Sensitivity : 0.8702          
+    ##             Specificity : 0.6973          
+    ##          Pos Pred Value : 0.9329          
+    ##          Neg Pred Value : 0.5262          
+    ##              Prevalence : 0.8287          
+    ##          Detection Rate : 0.7211          
+    ##    Detection Prevalence : 0.7730          
+    ##       Balanced Accuracy : 0.7837          
     ##                                           
     ##        'Positive' Class : no              
     ## 
@@ -764,25 +764,25 @@ forest:
     ## 
     ##           Reference
     ## Prediction   no  yes
-    ##        no  1666  159
-    ##        yes  181  346
+    ##        no  1674  144
+    ##        yes  187  347
     ##                                           
-    ##                Accuracy : 0.8554          
-    ##                  95% CI : (0.8406, 0.8694)
-    ##     No Information Rate : 0.7853          
-    ##     P-Value [Acc > NIR] : <2e-16          
+    ##                Accuracy : 0.8593          
+    ##                  95% CI : (0.8446, 0.8731)
+    ##     No Information Rate : 0.7912          
+    ##     P-Value [Acc > NIR] : < 2e-16         
     ##                                           
-    ##                   Kappa : 0.578           
-    ##  Mcnemar's Test P-Value : 0.2548          
+    ##                   Kappa : 0.5873          
+    ##  Mcnemar's Test P-Value : 0.02097         
     ##                                           
-    ##             Sensitivity : 0.9020          
-    ##             Specificity : 0.6851          
-    ##          Pos Pred Value : 0.9129          
-    ##          Neg Pred Value : 0.6565          
-    ##              Prevalence : 0.7853          
-    ##          Detection Rate : 0.7083          
-    ##    Detection Prevalence : 0.7759          
-    ##       Balanced Accuracy : 0.7936          
+    ##             Sensitivity : 0.8995          
+    ##             Specificity : 0.7067          
+    ##          Pos Pred Value : 0.9208          
+    ##          Neg Pred Value : 0.6498          
+    ##              Prevalence : 0.7912          
+    ##          Detection Rate : 0.7117          
+    ##    Detection Prevalence : 0.7730          
+    ##       Balanced Accuracy : 0.8031          
     ##                                           
     ##        'Positive' Class : no              
     ## 
@@ -808,9 +808,9 @@ perform:
     ##        cost:  1 
     ##       gamma:  0.02564103 
     ## 
-    ## Number of Support Vectors:  2075
+    ## Number of Support Vectors:  2077
     ## 
-    ##  ( 1053 1022 )
+    ##  ( 1055 1022 )
     ## 
     ## 
     ## Number of Classes:  2 
@@ -825,20 +825,20 @@ perform:
 
     ##      y
     ## pred          no        yes
-    ##   no  0.70535714 0.09311224
-    ##   yes 0.07057823 0.13095238
+    ##   no  0.70960884 0.10629252
+    ##   yes 0.06335034 0.12074830
 
     table(pred = prediction,
           y = test_set[,17])
 
     ##      y
     ## pred    no  yes
-    ##   no  1659  219
-    ##   yes  166  308
+    ##   no  1669  250
+    ##   yes  149  284
 
     cm_svm <- confusionMatrix(prediction, test_set$y)
 
-An accuracy of 83.63% is acceptable, but previous models already
+An accuracy of 83.04% is acceptable, but previous models already
 outperform this one. Notice that the overall accuracy might not be the
 best metric to analyze this models' performances. However, this will be
 addressed later on. We can use cross validation techniques or fine-tune
@@ -864,30 +864,30 @@ the model's parameters to obtain better results:
     ## 
     ##           Reference
     ## Prediction   no  yes
-    ##        no  1647  232
-    ##        yes  178  295
+    ##        no  1659  258
+    ##        yes  159  276
     ##                                           
-    ##                Accuracy : 0.8257          
-    ##                  95% CI : (0.8097, 0.8408)
-    ##     No Information Rate : 0.7759          
-    ##     P-Value [Acc > NIR] : 1.551e-09       
+    ##                Accuracy : 0.8227          
+    ##                  95% CI : (0.8067, 0.8379)
+    ##     No Information Rate : 0.773           
+    ##     P-Value [Acc > NIR] : 1.873e-09       
     ##                                           
-    ##                   Kappa : 0.4797          
-    ##  Mcnemar's Test P-Value : 0.008858        
+    ##                   Kappa : 0.4595          
+    ##  Mcnemar's Test P-Value : 1.594e-06       
     ##                                           
-    ##             Sensitivity : 0.9025          
-    ##             Specificity : 0.5598          
-    ##          Pos Pred Value : 0.8765          
-    ##          Neg Pred Value : 0.6237          
-    ##              Prevalence : 0.7759          
-    ##          Detection Rate : 0.7003          
-    ##    Detection Prevalence : 0.7989          
-    ##       Balanced Accuracy : 0.7311          
+    ##             Sensitivity : 0.9125          
+    ##             Specificity : 0.5169          
+    ##          Pos Pred Value : 0.8654          
+    ##          Neg Pred Value : 0.6345          
+    ##              Prevalence : 0.7730          
+    ##          Detection Rate : 0.7054          
+    ##    Detection Prevalence : 0.8151          
+    ##       Balanced Accuracy : 0.7147          
     ##                                           
     ##        'Positive' Class : no              
     ## 
 
-82.57% accuracy is also good, but still not optimal. The cross validated
+82.27% accuracy is also good, but still not optimal. The cross validated
 SVM can still be improved upon.
 
 Using the `total_accuracy_svm` function from the lectures, we can try to
@@ -927,8 +927,8 @@ find the best values for the C and Gamma parameters:
     opt_cost = params$cost[opt_params]
     opt_gamma = params$gamma[opt_params]
 
-The optimal values obtained are `cost` = 10 and `gamma` = 0.01, which
-can be used to train the final SVM:
+The optimal values obtained are `cost` = 1 and `gamma` = 0.1, which can
+be used to train the final SVM:
 
     imp_svm <-
       svm(y ~ .,
@@ -943,25 +943,25 @@ can be used to train the final SVM:
     ## 
     ##           Reference
     ## Prediction   no  yes
-    ##        no  1667  211
-    ##        yes  158  316
+    ##        no  1679  230
+    ##        yes  139  304
     ##                                           
     ##                Accuracy : 0.8431          
     ##                  95% CI : (0.8278, 0.8576)
-    ##     No Information Rate : 0.7759          
-    ##     P-Value [Acc > NIR] : 2.555e-16       
+    ##     No Information Rate : 0.773           
+    ##     P-Value [Acc > NIR] : < 2.2e-16       
     ##                                           
-    ##                   Kappa : 0.5321          
-    ##  Mcnemar's Test P-Value : 0.006789        
+    ##                   Kappa : 0.5244          
+    ##  Mcnemar's Test P-Value : 2.797e-06       
     ##                                           
-    ##             Sensitivity : 0.9134          
-    ##             Specificity : 0.5996          
-    ##          Pos Pred Value : 0.8876          
-    ##          Neg Pred Value : 0.6667          
-    ##              Prevalence : 0.7759          
-    ##          Detection Rate : 0.7088          
-    ##    Detection Prevalence : 0.7985          
-    ##       Balanced Accuracy : 0.7565          
+    ##             Sensitivity : 0.9235          
+    ##             Specificity : 0.5693          
+    ##          Pos Pred Value : 0.8795          
+    ##          Neg Pred Value : 0.6862          
+    ##              Prevalence : 0.7730          
+    ##          Detection Rate : 0.7139          
+    ##    Detection Prevalence : 0.8116          
+    ##       Balanced Accuracy : 0.7464          
     ##                                           
     ##        'Positive' Class : no              
     ## 
@@ -1009,7 +1009,7 @@ lectures:
                  margin = 1,
                  main = paste("Tuned SVM (", round(cm_imp_svm$overall[1] * 100), "%)",sep = ""))
 
-![](Classification_project_files/figure-markdown_strict/graph_svm-1.png)
+![](figures/graph_svm-1.png)
 
 As well as the Principal Component projections that allow us to view the
 decision boundary:
@@ -1028,7 +1028,7 @@ decision boundary:
       ylim = c(5, -15)
     )
 
-![](Classification_project_files/figure-markdown_strict/pca_svm-1.png)
+![](figures/pca_svm-1.png)
 
 In order to deal with the unreliability of the overall accuracy metric,
 we will follow the class notes to display Receiver Operating
@@ -1085,7 +1085,7 @@ Next, we can plot the curves using this dataframe:
                                                              'Neural Network'='#56B4E9', 'Decision Tree'='#009E73',
                                                              'Random Forest'='#D55E00', 'CV Support Vector Machine'='#0072B2', 'Tuned Support Vector Machine'='#0352B1'))
 
-![](Classification_project_files/figure-markdown_strict/roc_plot-1.png)
+![](figures/roc_plot-1.png)
 
 And compute the AUC metric:
 
@@ -1109,12 +1109,12 @@ And compute the AUC metric:
     auc
 
     ##                                 AUC
-    ## Logistic Regression          0.7979
-    ## Neural Network               0.8128
-    ## Decision Tree                0.8906
-    ## Random Forest                0.8961
-    ## CV Support Vector Machine    0.8962
-    ## Tuned Support Vector Machine 0.9151
+    ## Logistic Regression          0.7711
+    ## Neural Network               0.7943
+    ## Decision Tree                0.8895
+    ## Random Forest                0.8928
+    ## CV Support Vector Machine    0.8929
+    ## Tuned Support Vector Machine 0.9121
 
 As expected, the Tuned SVM yields the best possible results from within
 all the applied models, with the highest Area Under the Curve.
