@@ -1,3 +1,5 @@
+# Analysis of Marketing Campaigns in a Portuguese Financial Institution
+
 -   [1. Introduction](#introduction)
 -   [2. Exploratory Data Analysis and Data
     Visualization](#exploratory-data-analysis-and-data-visualization)
@@ -12,7 +14,7 @@
     -   [5.6. Adjustment and plots](#adjustment-and-plots)
 -   [Reference](#reference)
 
-1. Introduction
+## 1. Introduction
 ===============
 
 Consider the "*bank-full.csv*" dataset. The data is related with direct
@@ -35,7 +37,7 @@ Please note that I will be closely following the class notes, scripts
 and documentation as well as functions and code snippets from the
 lectures.
 
-2. Exploratory Data Analysis and Data Visualization
+## 2. Exploratory Data Analysis and Data Visualization
 ===================================================
 
 Let us start by loading some of the required packages. Others will be
@@ -378,7 +380,7 @@ hypothesis.
 
 ![](figures/balance-1.png)
 
-3. Correlation matrix
+## 3. Correlation matrix
 =====================
 
     correlations <- bank %>%
@@ -482,7 +484,7 @@ hypothesis.
 The numerical variables have low correlation values between one another.
 No further steps are needed to remove any highly correlated features.
 
-4. Train & test splitting
+## 4. Train & test splitting
 =========================
 
 Instead of using the `caret` package, the code snippet below quickly
@@ -506,7 +508,7 @@ splits the data in equally proportioned sets:
     ##        no       yes 
     ## 0.7729592 0.2270408
 
-5. Model adjustments and plots
+## 5. Model adjustments and plots
 ==============================
 
 Fitting several different models will allow us to carefully compare
