@@ -1,0 +1,572 @@
+---
+title: "Statistical Learning and Decision Making II"
+subtitle: "Regression Project"
+author: "Alejandro Gonzalez"
+date: "1 May 2018"
+output:
+  html_document:
+    toc: true
+    keep_md: true
+---
+
+```{r setup, include=FALSE, cache=TRUE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, cache = TRUE, fig.align = 'center', fig.path = "figures/")
+```
+
+# 1. Introduction
+
+Consider the S&P Letters Data collected using all the block groups in California from the 1990 Census.
+The final data contained 20,640 observations on 9 variables. 
+The dependent variable is ln(median house value):
+
+
+$$
+\begin{aligned}
+  ln(medianHouseValue) = a_1 + a_2 * medianIncome \\ + a_3 * medianIncome ^ 2 + a_4 * medianIncome ^ 3 \\
+  + a_5 * ln(medianAge) + a_6 * ln(\frac{totalRooms}{population}) \\ + a_7 * ln(\frac{totalBedrooms}{population}) + a_8 *   ln(\frac{population}{households}) \\ + a_9 * ln(households)
+  \end{aligned}
+$$
+
+The file "*cadata.txt*" contains all the variables. Specifically, it contains median house value, median income, housing median age, total rooms, total bedrooms, population, households, latitude, and longitude in that order. 
+
+Let us start by loading some of the required packages.
+
+```{r library, include = FALSE}
+load_libraries <- c('corrplot', 'Amelia',
+                    'GGally', 'ggplot2',
+                    'e1071', 'tidyverse',
+                    'ggthemes', 'reshape2',
+                    "caret", 'knitr',
+                    'kernlab', "glmnet",
+                    'neuralnet', 'rpart',
+                    'kableExtra')
+
+sapply(load_libraries,
+       require,
+       character = TRUE)
+
+```
+
+
+```{r data}
+ca_data <- read.csv("./datasets/cadata2.csv",  sep = ",", na.strings = "unknown")
+```
+
+# 2. Exploratory Data Analysis
+
+```{r initial}
+dim(ca_data)
+str(ca_data)
+summary(ca_data)
+```
+
+```{r density}
+lng_data <- 
+  ca_data %>% 
+  select_if(is.numeric) %>% 
+  gather()
+
+ggplot(data = data.frame(),
+       aes(x = value)) +
+  geom_density(data = lng_data,
+               fill = '#377EB8',
+               color = '#377EB8',
+               alpha = .3) +
+  facet_wrap( ~ key, scales = 'free') +
+  labs(title = "Density",
+       subtitle = 'of each numeric variable') + 
+  theme(plot.title = element_text(hjust = .5), 
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) +
+  theme_fivethirtyeight()
+```
+
+```{r skewness}
+
+skewedVars <- c()
+for(i in names(ca_data)){
+  if(is.numeric(ca_data[,i])){
+    skewVal <- skewness(ca_data[,i])
+    print(paste(i, skewVal, sep = ": "))
+    if(abs(skewVal) > 0.5){
+      skewedVars <- c(skewedVars, i)
+    }
+  }
+}
+
+skewedVars
+```
+
+Notice how many of the features are positively skewed, including the dependent variable with an skewness coefficient of 0.9776. For that reason it is convenient to perform logaritmic transformation to correctly estimate ```median_house_value```
+
+```{r skew_mdv}
+ca_data$median_house_value %>% 
+  log() %>% 
+  skewness()
+
+ca_data %>% 
+  ggplot() +
+  geom_density(aes(x = log(median_house_value)), color = '#377EB8', fill = '#377EB8', alpha = 0.3) + 
+  labs(title = "Density of dependent variable",
+       subtitle = 'logarithmic scale') +
+  theme(plot.title = element_text(hjust = .5), 
+        axis.ticks = element_blank(),
+        panel.grid.minor.x = element_line(colour = "gray80")) +
+  theme_fivethirtyeight()
+  
+```
+
+
+# 3. Missing values
+
+```{r missing}
+ca_data %>% 
+  is.na() %>% 
+  sum()
+```
+
+As we can see, there are no missing values in the data. Therefore, there is no need to plot a missingness map or perform value imputation.
+
+
+# 4. Data split and regression modelling
+
+Let us split the data into training and validation sets, as well as define some useful variables and function for later use.
+
+```{r split}
+ca_data <- na.omit(ca_data)
+idx <- 1:nrow(ca_data)
+test_idx <- sample(idx, trunc(length(idx) * 0.3))
+test_set <- ca_data[test_idx,]
+train_set <- ca_data[-test_idx,]
+```
+
+```{r function}
+f <- log(median_house_value) ~ median_income +
+  median_income ^ 2 +
+  median_income ^ 3 +
+  log(housing_median_age) +
+  log(total_rooms / population) +
+  log(total_bedrooms / population) +
+  log(population / households) +
+  log(households)
+
+
+mae <- function(observed, predicted) {
+  (observed - predicted) %>% 
+    abs() %>% 
+    mean()
+}
+```
+
+## 4.1. Linear regression
+
+```{r lm}
+ols <- lm(f, 
+   data = train_set)
+
+summary(ols)
+```
+
+```{r ols_rmse}
+ols_pred <- predict(ols,  
+                    test_set)
+
+ols_rmse <- (ols_pred - log(test_set$median_house_value)) ^ 2 %>% 
+             mean() %>% 
+             sqrt()
+
+ols_mae <- mae(log(test_set$median_house_value),
+               ols_pred)
+```
+
+
+It seems that all of the used variables are highly significative. However, the linear model performs very poorly with an R-squared coefficient of `r summary(ols)$adj.rsquared` and an RMSE of `r ols_rmse`.
+
+Let us try a similar model, this time using 10-fold cross validation with `caret` package:
+
+```{r cv_lm}
+set.seed(6)
+
+control <- trainControl(method = "cv", number = 10)
+
+cv_ols <- train(f,
+                data = train_set,
+                method = "lm",
+                metric = "RMSE",
+                trControl = control)
+
+cv_ols_rmse <- cv_ols$results["RMSE"] %>% as.numeric()
+cv_ols_mae <- cv_ols$results["MAE"] %>% as.numeric()
+```
+
+This model does not perform much better, with `r cv_ols$results["Rsquared"]` R-squared and `r cv_ols_rmse` RMSE.
+
+## 4.2. Ridge regression
+
+```{r ridge}
+set.seed(6)
+x = model.matrix(f,
+                 ca_data)[,-1]
+y = log(train_set$median_house_value)
+x_train = x[-test_idx,]
+
+cv_ridge = cv.glmnet(x_train,
+                     y,
+                     alpha = 0,
+                     nfolds = 10)
+
+plot(cv_ridge)
+```
+
+The RMSE for the Ridge Regression would be:
+
+```{r ridge_pred}
+ridge_pred <- predict(cv_ridge,
+                      s = 2.5,
+                      newx = x[test_idx,])
+ridge_rmse <- mean((ridge_pred - log(test_set$median_house_value)) ^ 2) %>% 
+              sqrt()
+ridge_mae <- mae(log(test_set$median_house_value), ridge_pred)
+
+ridge_rmse
+ridge_mae
+
+
+```
+
+Even though this regression performs adequately, it violates the constraint of using the response function specified in the project. This is due to the the **l-2** regularization performed by this model which sets some of the predictor's regression parameters to zero, effectively performing a sort of model shrinking which discards some of the features.
+
+## 4.3. Regression Tree
+
+Let us train a regression tree on the data and prune it by finding the optimal height, which is found on the node with lowest cross validation error:
+
+```{r tree}
+
+tree_mdl <- rpart(f,
+                  train_set,
+                  method = 'anova')
+
+opt_prune <- tree_mdl$cptable[which.min(tree_mdl$cptable[, "xerror"]), "CP"]
+tree_mdl <- prune(tree_mdl, cp = opt_prune)
+
+```
+
+
+```{r tree_pred}
+tree_pred <- predict(tree_mdl,
+                     test_set)
+
+tree_rmse <- mean((tree_pred - log(test_set$median_house_value)) ^ 2) %>% 
+             sqrt()
+tree_mae <- mae(log(test_set$median_house_value), tree_pred)
+
+tree_rmse
+tree_mae
+```
+
+This model features moderately accurate prediction results, but our error scores can surely be improved further with other models.
+
+## 4.4. Neural network
+
+Neural networks are also commonly used to predict continuous variables like in this case:
+
+```{r nn}
+nn <- neuralnet(f,
+                train_set,
+                hidden = c(2, 1),
+                linear.output = TRUE,
+                threshold = 0.1)
+
+nn_pred <- compute(nn,
+                   test_set[,-c(1, 8:9)])$net.result
+
+nn_rmse <- mean((nn_pred - log(test_set$median_house_value)) ^ 2) %>% 
+           sqrt()
+nn_rmse
+
+nn_mae <- mae(log(test_set$median_house_value), nn_pred)
+nn_mae
+```
+
+
+This model in specific faces convergence problems unless the ```stepmax``` or ```threshold``` parameters are set to high values. This can lead to longer training times and lower model accuracy, respectively. Thus, the chosen model is a very simple one with two hidden layers consisting of 2 and 1 neurons which can explain the high error metrics returned by the results.
+
+## 4.5. Support Vector Regression machines
+
+Not only can Support Vector Machines achieve the highest accuracy scores in classification problems, they are also useful for regression purposes as there have been several different methods developed for SVRs.
+
+
+### Epsilon-SVR
+
+Let us delve into this models by initializing a linear epsilon-SVR and improve from there. This type of SVR follows a loss-insensitive cost function:
+
+
+```{r eps_svr}
+
+eps_svr <- ksvm(f,
+                data = train_set,
+                type = 'eps-svr',
+                kernel = 'vanilladot')
+
+eps_svr_pred <- predict(eps_svr,
+                        newdata = test_set)
+
+eps_svr_rmse <- (eps_svr_pred - log(test_set$median_house_value)) ^ 2 %>% 
+                 mean() %>% 
+                 sqrt()
+eps_svr_mae <- mae(log(test_set$median_house_value),
+                   eps_svr_pred)
+
+```
+
+This model performs a bit better than any of the other models applied above. We can tweak the SVR and try to obtain better results.
+For instance, we can perform a grid search on a range of cost and gamma parameters to find their optimal values, as well as changing to a Radial Basis Function.
+
+
+```{r eps_tune_svr, results='hide'}
+epsilon <- c(seq(0.2, 1,
+                 by = 0.2))
+
+cost <- c(10 ^ seq(-1, 1,
+                   by = 1))
+
+params <- expand.grid(cost = cost,
+                      epsilon = epsilon)
+
+total_rmse_svr <- function(train_set, test_set) {
+  rmse1 <- NULL
+  rmse2 <- NULL
+  for (i in 1:nrow(params)) {
+    learn_svr <-
+      ksvm(
+        f,
+        data = train_set,
+        type = "eps-svr",
+        epsilon = params$epsilon[i],
+        cost = params$cost[i],
+        kernel = 'rbfdot'
+      )
+    pred_svr <- predict(learn_svr, newdata = test_set)
+    rmse1 <- (pred_svr - log(test_set$median_house_value)) ^ 2 %>% 
+              mean() %>% 
+              sqrt()
+    rmse2[i] <- rmse1
+  }
+  rmse2
+}
+
+c <- total_rmse_svr(train_set, test_set)
+opt_params <- which(c == max(c))[1]
+
+
+opt_cost = params$cost[opt_params]
+opt_epsilon = params$epsilon[opt_params]
+
+```
+
+With this method, we are training `r nrow(cost) * nrow(epsilon)` models and choosing the one with lowest RMSE.
+
+```{r eps_tune_rmse}
+tune_svr <- ksvm(f,
+                 data = train_set,
+                 type = "eps-svr",
+                 gamma = opt_epsilon,
+                 cost = opt_cost,
+                 kernel = 'rbfdot')
+
+eps_tune_svr_pred <- predict(tune_svr,
+                             newdata = test_set)
+eps_tune_svr_rmse <- (eps_tune_svr_pred - log(test_set$median_house_value)) ^ 2 %>% 
+                      mean() %>% 
+                      sqrt()
+
+eps_tune_svr_rmse
+
+eps_tune_svr_mae <- mae(log(test_set$median_house_value),
+                       eps_tune_svr_pred)
+```
+
+
+We will also use a polynomial kernel to approach this regression, setting ```degree = 3``` in the function parameters.
+
+
+```{r eps_poly_svr, results='hide'}
+epsilon <- c(seq(0.2
+                 , 1,
+                 by = 0.2))
+
+cost <- c(10 ^ seq(-3, 1,
+                   by = 1))
+
+params <- expand.grid(cost = cost,
+                      epsilon = epsilon)
+
+total_rmse_svr <- function(train_set, test_set) {
+  rmse1 <- NULL
+  rmse2 <- NULL
+  for (i in 1:nrow(params)) {
+    learn_svr <-
+      ksvm(
+        f,
+        data = train_set,
+        type = "eps-svr",
+        epsilon = params$epsilon[i],
+        cost = params$cost[i],
+        kernel = 'polydot'
+      )
+    pred_svr <- predict(learn_svr, newdata = test_set)
+    rmse1 <- (pred_svr - log(test_set$median_house_value)) ^ 2 %>% 
+              mean() %>% 
+              sqrt()
+    rmse2[i] <- rmse1
+  }
+  rmse2
+}
+
+c <- total_rmse_svr(train_set, test_set)
+opt_params <- which(c == max(c))[1]
+
+
+opt_cost = params$cost[opt_params]
+opt_epsilon = params$epsilon[opt_params]
+
+```
+
+
+```{r eps_poly_rmse}
+tune_svr <- ksvm(f,
+                 data = train_set,
+                 type = "eps-svr",
+                 epsilon = opt_epsilon,
+                 cost = opt_cost,
+                 kernel = 'polydot',
+                 kpar = list(degree = 3))
+
+eps_poly_svr_pred <- predict(tune_svr,
+                             newdata = test_set)
+eps_poly_svr_rmse <- (eps_poly_svr_pred - log(test_set$median_house_value)) ^ 2 %>% 
+                      mean() %>% 
+                      sqrt()
+
+eps_poly_svr_rmse
+
+eps_poly_svr_mae <- mae(log(test_set$median_house_value),
+                       eps_poly_svr_pred)
+
+eps_poly_svr_mae
+
+```
+
+### Nu-SVR
+
+Let us repeat the steps above with a different method for a Support Vector Regression machine:
+
+```{r nu_svr}
+
+nu_svr <- ksvm(f,
+                data = train_set,
+                type = 'nu-svr',
+                kernel = 'vanilladot')
+
+nu_svr_pred <- predict(nu_svr,
+                        newdata = test_set)
+
+nu_svr_rmse <- (nu_svr_pred - log(test_set$median_house_value)) ^ 2 %>% 
+                 mean() %>% 
+                 sqrt()
+nu_svr_mae <- mae(log(test_set$median_house_value),
+                  nu_svr_pred)
+```
+
+
+```{r nu_tune_svr, results='hide'}
+nu <- c(seq(0.2, 1,
+             by = 0.2))
+
+cost <- c(10 ^ seq(-1, 1,
+                   by = 1))
+
+params <- expand.grid(cost = cost,
+                      nu = nu)
+
+total_rmse_svr <- function(train_set, test_set) {
+  rmse1 <- NULL
+  rmse2 <- NULL
+  for (i in 1:nrow(params)) {
+    learn_svr <-
+      ksvm(
+        f,
+        data = train_set,
+        type = "nu-svr",
+        nu = params$nu[i],
+        cost = params$cost[i],
+        kernel = 'rbfdot'
+      )
+    pred_svr <- predict(learn_svr, newdata = test_set)
+    rmse1 <- (pred_svr - log(test_set$median_house_value)) ^ 2 %>% 
+              mean() %>% 
+              sqrt()
+    rmse2[i] <- rmse1
+  }
+  rmse2
+}
+
+c <- total_rmse_svr(train_set, test_set)
+opt_params <- which(c == max(c))[1]
+
+
+opt_cost = params$cost[opt_params]
+opt_nu = params$nu[opt_params]
+
+```
+
+
+```{r nu_tune_rmse}
+tune_svr <- ksvm(f,
+                 data = train_set,
+                 type = "nu-svr",
+                 nu = opt_nu,
+                 cost = opt_cost,
+                 kernel = 'rbfdot')
+
+nu_tune_svr_pred <- predict(tune_svr,
+                             newdata = test_set)
+nu_tune_svr_rmse <- (nu_tune_svr_pred - log(test_set$median_house_value)) ^ 2 %>% 
+                      mean() %>% 
+                      sqrt()
+
+nu_tune_svr_mae <- mae(log(test_set$median_house_value),
+                       nu_tune_svr_pred)
+```
+
+The nu-SVR also produces solid results, but it would much more useful to compare all the models error metrics to get a better understanding of their individual performances
+
+# 5. Results
+
+```{r errors}
+rmse_mx <- cbind(c("Linear regression", "CV Linear regression","Epsilon-SVR", 
+                   "Nu-SVR", "Tuned epsilon-SVR", "Tuned nu-SVR", "Polynomial Epsilon-SVR"), 
+                 c(ols_rmse, cv_ols_rmse, eps_svr_rmse, nu_svr_rmse,
+                   eps_tune_svr_rmse, nu_tune_svr_rmse, eps_poly_svr_rmse),
+                 c(ols_mae, cv_ols_mae, eps_svr_mae, nu_svr_mae,
+                   eps_tune_svr_mae, nu_tune_svr_mae, eps_poly_svr_mae)) %>% 
+  as.data.frame()
+
+colnames(rmse_mx) <- c("Model", "RMSE", "MAE")
+
+rmse_mx %>%
+  arrange(desc(RMSE))
+```
+
+Notice the big leap in error scores when using the optimal parameters returned by the tuning algorithm.
+
+
+Admittedly, the tuned epsilon-SVR has the best accuracy with the lowest Root of Mean Squared Error and Mean Absolute Error values.
+ 
+
+
+# 6. Reference
+
+González-Hidalgo, M., Miró-Julià, M. *Class notes, Statistical Learning and Decision Making II.* 2018.  
+
+Pace, R. Kelley and Ronald Barry, *Sparse Spatial Autoregressions*, Statistics and Probability Letters, 33 (1997) 291-297.
