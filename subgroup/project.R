@@ -42,9 +42,9 @@ us1990 <- read.csv("./data/USCensus1990.txt",
 r_idx <- 1:nrow(us1990) ; c_idx <- 1:ncol(us1990)
 
 r_idx <- sample(r_idx, trunc(length(r_idx) * 0.001))
-c_idx <- sample(c_idx, trunc(length(c_idx) * 0.3))
+c_idx <- sample(c_idx, trunc(length(c_idx) * 0.2))
 
-us1990 <- us1990[, c_idx]
+us1990 <- us1990[r_idx, c_idx]
 ```
 
 ```{r}
@@ -59,12 +59,26 @@ us1990[sapply(us1990, is.integer)] <- lapply(us1990[sapply(us1990, is.integer)],
 rs = DiscoverSubgroups(us1990, 
                        as.target("dIncome1", "4"),
                        new("SDTaskConfig",
-                           attributes = names(us1990)))
+                           attributes = c()))
 ToDataFrame(rs)
 
 ```
 
 ```{r}
-names(us1990)
+p.cov <- prim.cover(
+iClass ~ .,
+data = us1990,
+peeling.quantile = 0.01,
+min.support = 0.1,
+plot = TRUE,
+optimal.box = "2se")
+```
+
+```{r}
+p_div <- prim.diversify(iClass ~ .,
+               us1990,
+               peeling.quantile = 0.05,
+               n = 10)
+summary(p_div$attempts[[3]])
 ```
 
