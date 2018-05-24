@@ -20,6 +20,7 @@ First, let us load the dataset into memory and have a glance at its structure:
 ```{r library, echo = TRUE}
 library(rsubgroup)
 library(tidyverse)
+library(subgroup.discovery)
 ```
 
 
@@ -38,19 +39,23 @@ us1990 <- read.csv("./data/USCensus1990.txt",
 #   sum()
 ```
 
-```{r}
+```{r reduce}
+us1990 <- us1990[, -1]
 r_idx <- 1:nrow(us1990) ; c_idx <- 1:ncol(us1990)
 
-r_idx <- sample(r_idx, trunc(length(r_idx) * 0.001))
-c_idx <- sample(c_idx, trunc(length(c_idx) * 0.2))
+r_idx <- sample(r_idx, trunc(length(r_idx) * 0.05))
+# c_idx <- sample(c_idx, trunc(length(c_idx) * 0.7))
 
-us1990 <- us1990[r_idx, c_idx]
+us1990 <- us1990[r_idx, ] # [, c_idx]
 ```
 
 ```{r}
 us1990[sapply(us1990, is.integer)] <- lapply(us1990[sapply(us1990, is.integer)], 
                                        as.factor)
 
+vars <- us1990 %>% 
+  names() %>% 
+  as.vector()
 ```
 
 
@@ -59,26 +64,45 @@ us1990[sapply(us1990, is.integer)] <- lapply(us1990[sapply(us1990, is.integer)],
 rs = DiscoverSubgroups(us1990, 
                        as.target("dIncome1", "4"),
                        new("SDTaskConfig",
-                           attributes = c()))
-ToDataFrame(rs)
+                           attributes = vars[1:20],
+                           qf = "wracc",
+                           method = "sdmap",
+                           k = 5,
+                           minsize = 5000))
+
+ToDataFrame(rs) %>%
+  as.matrix()
 
 ```
 
 ```{r}
-p.cov <- prim.cover(
-iClass ~ .,
-data = us1990,
-peeling.quantile = 0.01,
-min.support = 0.1,
-plot = TRUE,
-optimal.box = "2se")
+# p_cov <- prim.cover(iClass ~ .,
+#                     data = us1990,
+#                     peeling.quantile = 0.01,
+#                     min.support = 0.1,
+#                     plot = TRUE,
+#                     optimal.box = "2se")
 ```
 
 ```{r}
-p_div <- prim.diversify(iClass ~ .,
+p_div <- prim.diversify(dIncome1 ~ .,
                us1990,
                peeling.quantile = 0.05,
-               n = 10)
+               n = 1)
+
 summary(p_div$attempts[[3]])
+```
+
+```{r}
+  prim.diversify(iClass ~ .,
+                 us1990,
+                 peeling.quantile = 0.1,
+                 n = 3) %>% 
+    summary()
+  
+```
+
+```{r}
+
 ```
 
