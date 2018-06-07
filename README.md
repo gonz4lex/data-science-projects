@@ -12,7 +12,11 @@ The aim of this project is to predict and classify whether a given credit card t
 
 ## Bank marketing analytics
 
-WIP
+This project stems from a dataset of marketing campaign calls made by a Portuguese banking institution to persuade clients to subscribe a deposit. This data can be used to fit pediction and classification models, as well as performing some interesting visual analysis.
+
+## Association rules and anomaly detection
+
+## Subgroup Discovery
 
 ## Playground
 
