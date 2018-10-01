@@ -18,8 +18,6 @@
 #For this reason I chose to scale the uniform distribution M by multiplying it by 3.
 #Here is the R code to implement rejection sampling for 100,000 observations in this example
 
-rm(list = ls(all = TRUE))
-
 library(combinat) # combinatorics utilities
 library(datasets) # The R Datasets Package
 library(base)
